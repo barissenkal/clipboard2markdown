@@ -1,59 +1,98 @@
+// @ts-check
+
 (function () {
   'use strict';
 
   // http://pandoc.org/README.html#pandocs-markdown
   var pandoc = [
+    
+    // https://jira.atlassian.com/secure/WikiRendererHelpAction.jspa?section=headings
+    ...["h1", "h2", "h3", "h4", "h5", "h5"].map((headerCode) => {
+      return {
+        filter: headerCode,
+        replacement: function (content, node) {
+          return '\n\n' + headerCode + '. ' + content + '\n\n';
+        }
+      }
+    }),
+    
+    // https://jira.atlassian.com/secure/WikiRendererHelpAction.jspa?section=texteffects
     {
-      filter: 'h1',
-      replacement: function (content, node) {
-        var underline = Array(content.length + 1).join('=');
-        return '\n\n' + content + '\n' + underline + '\n\n';
+      filter: ['em', 'b'],
+      replacement: function (content) {
+        return '*' + content + '*';
       }
     },
-
     {
-      filter: 'h2',
-      replacement: function (content, node) {
-        var underline = Array(content.length + 1).join('-');
-        return '\n\n' + content + '\n' + underline + '\n\n';
+      filter: 'i',
+      replacement: function (content) {
+        return '_' + content + '_';
       }
     },
-
+    {
+      filter: 'cite',
+      replacement: function (content) {
+        return '??' + content + '??';
+      }
+    },
+    {
+      filter: 'del',
+      replacement: function (content) {
+        return '-' + content + '-';
+      }
+    },
+    {
+      filter: 'u',
+      replacement: function (content) {
+        return '+' + content + '+';
+      }
+    },
     {
       filter: 'sup',
       replacement: function (content) {
         return '^' + content + '^';
       }
     },
-
     {
       filter: 'sub',
       replacement: function (content) {
         return '~' + content + '~';
       }
     },
+    // {
+    //   filter: 'tt', // Depreciated in html
+    //   replacement: function (content) {
+    //     return '{{' + content + '}}';
+    //   }
+    // },
+    {
+      filter: 'blockquote',
+      replacement: function (content) {
+        return '{quote}\n' + content + '\n{quote}';
+      }
+    },
+    {
+      filter: 'var', // Bonus. Not used by google docs.
+      replacement: function (content) {
+        return '`' + content + '`';
+      }
+    },
 
+    // https://jira.atlassian.com/secure/WikiRendererHelpAction.jspa?section=breaks
     {
       filter: 'br',
       replacement: function () {
-        return '\\\n';
+        return '\n\n'; // TODO(baris): Double check this (was "\\\n")
       }
     },
-
     {
       filter: 'hr',
       replacement: function () {
-        return '\n\n* * * * *\n\n';
+        return '\n\n----\n\n';
       }
     },
 
-    {
-      filter: ['em', 'i', 'cite', 'var'],
-      replacement: function (content) {
-        return '*' + content + '*';
-      }
-    },
-
+    // https://jira.atlassian.com/secure/WikiRendererHelpAction.jspa?section=advanced
     {
       filter: function (node) {
         var hasSiblings = node.previousSibling || node.nextSibling;
@@ -70,39 +109,53 @@
       }
     },
 
+    // https://jira.atlassian.com/secure/WikiRendererHelpAction.jspa?section=links
     {
       filter: function (node) {
         return node.nodeName === 'A' && node.getAttribute('href');
       },
       replacement: function (content, node) {
         var url = node.getAttribute('href');
-        var titlePart = node.title ? ' "' + node.title + '"' : '';
+        // var titlePart = node.title ? ' "' + node.title + '"' : ''; // TODO(baris): Double check this.
         if (content === url) {
-          return '<' + url + '>';
+          return '[' + url + ']';
         } else if (url === ('mailto:' + content)) {
-          return '<' + content + '>';
+          return '[' + url + ']';
         } else {
-          return '[' + content + '](' + url + titlePart + ')';
+          return '[' + content + '|' + url + ']';
         }
       }
     },
 
+    // https://jira.atlassian.com/secure/WikiRendererHelpAction.jspa?section=lists
     {
       filter: 'li',
       replacement: function (content, node) {
         content = content.replace(/^\s+/, '').replace(/\n/gm, '\n    ');
-        var prefix = '-   ';
+        
+        var prefix = '';
+        
         var parent = node.parentNode;
-
-        if (/ol/i.test(parent.nodeName)) {
-          var index = Array.prototype.indexOf.call(parent.children, node) + 1;
-          prefix = index + '. ';
-          while (prefix.length < 4) {
-            prefix += ' ';
+        var isParentOL = /ol/i.test(parent.nodeName);
+        var isParentUL = /ul/i.test(parent.nodeName);
+        
+        while (isParentOL || isParentUL) {
+          if (isParentOL) {
+            prefix = "#" + prefix;
+          } else {
+            prefix = "*" + prefix;
+          }
+          
+          if (/li/i.test(parent.parentNode)) {
+            parent = parent.parentNode;
+            isParentOL = /ol/i.test(parent.nodeName);
+            isParentUL = /ul/i.test(parent.nodeName);
+          } else {
+            break;
           }
         }
 
-        return prefix + content;
+        return prefix + ' ' + content;
       }
     }
   ];
@@ -123,10 +176,13 @@
               .replace(/\n\n\s*\\\n/g, '\n\n')
               .replace(/\n\n\n*/g, '\n\n')
               .replace(/[ ]+$/gm, '')
-              .replace(/^\s+|[\s\\]+$/g, '');
+              .replace(/^\s+|[\s\\]+$/g, '')
+              .replace(/\n/g, '\\n')
+              .replace(/"/g, '\\"');
   };
 
   var convert = function (str) {
+    console.log("convert str", str);
     return escape(toMarkdown(str, { converters: pandoc, gfm: true }));
   }
 

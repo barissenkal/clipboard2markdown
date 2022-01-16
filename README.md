@@ -1,4 +1,4 @@
-clipboard2markdown
+clipboard2markdown (For Jira)
 ==================
 
 > Easily convert richly formatted text or HTML to
