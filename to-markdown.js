@@ -219,8 +219,8 @@ toMarkdown = function (input, options) {
   output = getContent(clone)
 
   return output.replace(/^[\t\r\n]+|[\t\r\n\s]+$/g, '')
-    .replace(/\n\s+\n/g, '\n\n')
-    .replace(/\n{3,}/g, '\n\n')
+    .replace(/\n\s+\n/g, '\n')
+    .replace(/\n{2,}/g, '\n')
 }
 
 toMarkdown.isBlock = isBlock

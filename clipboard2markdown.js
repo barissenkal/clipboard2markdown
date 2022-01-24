@@ -11,7 +11,7 @@
       return {
         filter: headerCode,
         replacement: function (content, node) {
-          return '\n\n' + headerCode + '. ' + content + '\n\n';
+          return '\n\n' + headerCode + '. ' + content + '\n';
         }
       }
     }),
@@ -82,7 +82,7 @@
     {
       filter: 'br',
       replacement: function () {
-        return '\n\n'; // TODO(baris): Double check this (was "\\\n")
+        return '\n';
       }
     },
     {
